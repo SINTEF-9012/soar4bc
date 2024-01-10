@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from CogniGPT.cognigpt.gpt.api import generate_code
+from CogniGPT.gpt.api import generate_code
 import io
 import sys
 
