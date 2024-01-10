@@ -3,6 +3,7 @@ from minio.error import S3Error
 import configparser
 import time
 from datetime import timedelta
+import os
 
 
 client = None
@@ -135,9 +136,16 @@ def download_object(bucket_name, object_name, file_path, prefix = None, version_
         print("error occurred.", exc)
     if prefix is not None:
         object_name = prefix + object_name
+
+    # Ensure the directory exists:
+    directory = os.path.dirname(file_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     # TODO: Provide the correct SSE-C key if encrypted object
-    data = client.fget_object(bucket_name, object_name, file_path, version_id = version_id)
+    client.fget_object(bucket_name, object_name, file_path, version_id = version_id)
     # Tested
+   
 
 def upload_object(bucket_name, object_name, file_path, prefix = None, metadata = None):
     '''
