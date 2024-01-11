@@ -44,3 +44,6 @@ jspm_packages
 # temporary files
 *.swp
 __pycache__
+
+# later additions
+connection/temp

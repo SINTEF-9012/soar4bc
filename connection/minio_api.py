@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from minio_access import url_object
+from minio_access import url_object, download_object
 
 
 app = Flask(__name__)
@@ -16,11 +16,21 @@ def add_cors_headers(response):
 def apply_cors(response):
     return add_cors_headers(response)
 
-@app.route('/get_minio_url', methods=['GET'])
+@app.route('/minio_get_url', methods=['GET'])
 def get_minio_url():
-    node_name = request.args.get('node_name')  # You can pass the node name as a query parameter
-    url = url_object(bucket_name='pcap-ferro', object_name=node_name)
+    file_name = request.args.get('file_name')  
+    print("Received request to obtain URL by accessing minio for node:", file_name)
+    url = url_object(bucket_name='pcap-ferro', object_name=file_name) # Obs: Hard-coded bucket name
     return jsonify({'url': url})
+
+@app.route('/minio_download', methods=['GET'])
+def minio_download():
+    file_name = request.args.get('file_name')
+    download_path = "./temp/sample.pcap" # Obs: Hard-coded path
+    print(f"Received request to download minio data for node {file_name}, and save on path: {download_path}")
+    download_object(bucket_name='pcap-ferro', object_name=file_name, file_path=download_path, ) # Obs: Hard-coded bucket name
+    # Return status
+    return jsonify({'status': 200})
 
 if __name__ == '__main__':
     app.run(host="localhost", port=5000)
