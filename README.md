@@ -1,4 +1,4 @@
-# MADT4BC: Multi-Aspect Digital Twin for Business Continuity
+# SOAR4BC: Digital Twin-based AI-driven Security Orchestration and Automatic Response with a dashboard based on NeoDash
 
 ## Installation
 
