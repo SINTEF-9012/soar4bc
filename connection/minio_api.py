@@ -20,7 +20,7 @@ def apply_cors(response):
 def get_minio_url():
     file_name = request.args.get('file_name')  
     print("Received request to obtain URL by accessing minio for node:", file_name)
-    url = url_object(bucket_name='pcap-ferro', object_name=file_name) # Obs: Hard-coded bucket name
+    url = url_object(bucket_name='soar4bc', object_name=file_name) # Obs: Hard-coded bucket name
     return jsonify({'url': url})
 
 @app.route('/minio_download', methods=['GET'])
@@ -28,7 +28,7 @@ def minio_download():
     file_name = request.args.get('file_name')
     download_path = "./temp/sample.pcap" # Obs: Hard-coded path
     print(f"Received request to download minio data for node {file_name}, and save on path: {download_path}")
-    download_object(bucket_name='pcap-ferro', object_name=file_name, file_path=download_path, ) # Obs: Hard-coded bucket name
+    download_object(bucket_name='soar4bc', object_name=file_name, file_path=download_path, ) # Obs: Hard-coded bucket name
     # Return status
     return jsonify({'status': 200})
 
