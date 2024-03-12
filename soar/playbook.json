@@ -1,0 +1,22 @@
+{
+    "Playbook Rules":[
+        {
+            "Rule_ID":"1",
+            "Source":"Shark Detection",
+            "Type":"No Value",
+            "Response":"Disable Communication"
+        },
+        {
+            "Rule_ID":"2",
+            "Source":"SOAR Processing Unit",
+            "Type":"Negative Value",
+            "Response":"Disable Communication"
+        },
+        {
+            "Rule_ID":"3",
+            "Source":"Digital Twin Backup",
+            "Type":"Missing Access Control",
+            "Response":"Update Access Service"
+        }
+    ]
+}
