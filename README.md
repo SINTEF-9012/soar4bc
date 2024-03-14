@@ -82,11 +82,194 @@ Create a bucket and update the bucket name in connection/minio_api.py file. Add 
 Open the dashboard in browser: [http://localhost:3000](http://localhost:3000), choose "New Dashboard". 
 Log in with user name: neo4j, password: sindit-neo4j.
 
-**Create database**: If the database is empty, you can load one by opening Neo4j Browser at [http://localhost:7474](http:localhost:7474). Copy the content in `samples/sample-data-updated.cypher` and past it into the query box of the Neo4j browser, then execute the query. This query contains one example static data node and one analytics node. The name/type of the PCAP file needs to correspond to the endpoint/type properties of the static node and vice-versa. 
+**Create database**: If the database is empty, you can load one by opening Neo4j Browser at [http://localhost:7474](http:localhost:7474). Copy the content in `samples/sample-data-updated.cypher` and paste it into the query box of the Neo4j browser, then execute the query. This query contains one example static data node and one analytics node. The name/type of the PCAP file needs to correspond to the endpoint/type properties of the static node and vice-versa. 
 
 **Load dashboard**: To load a dashboard, press load dashboard button in left side panel. Choose "Select from file", and choose a sample database (e.g. dashboard-2023-12-05.json) in the "samples" folder in this repo. 
 
 If the database is empty, you can load one by opening Neo4j Browser at http://localhost:7474 (log in using details in docker compose file). Copy the content in samples/sample-data-updated.cypher and paste it into the query box of the Neo4j browser, then execute the query. The name/type of the object file added in Minio needs to correspond to the endpoint/type properties of the static node. 
+
+## Running SOAR Experiment based on MiniNet (Based on the work by Valtteri)
+
+To initialize the database:
+
+1. Find the data.cypher file from the `samples/data.cypher`.
+2. Copy all the contents and paste them into the query box in Neo4j browser on at [http://localhost:7474](http:localhost:7474), then execute the query.
+
+
+### NeoDash
+
+After setting up Neo4j you can run the dashboard by opening the dashboard in browser: [http://localhost:3000](http://localhost:3000), choose "New Dashboard". 
+Log in with user name: neo4j, password: sindit-neo4j.
+
+
+To initialize the dashboard:
+
+1. Find the dashboard.json file from the `samples/dashboard.json`.
+2. Inside the dashboard, after you have created a New Dashboard and added the above shown credentials, click on the left panel on the page.
+3. Click on the plus sign, and import dashboard.json.
+
+## Configuring Test Bed
+
+The test bed has 4 programs that run on it:
+
+1. Mininet
+2. Ryu SDN Controller
+3. Shark (pyshark + Flask)
+4. Open Policy Agent
+
+### Initial Set-up:
+
+To run and set-up Mininet, please read this guide:
+
+https://mininet.org/download/
+
+To ensure as little conflicts as possible, you should use option 1 from the guide with VirtualBox and the VM image provided, set up with a **Host-only Adapter on Adapter 2**. This should make it so that you are connecting to Mininet on eth1. Remember to allocate computing resources to the VM in the VirtualBox settings.
+
+This test bed has been developed on Windows 11 with WSL and VirtualBox with Mininet VM.
+
+On VirtualBox you can then start the Mininet VM. The username and password is:
+
+```
+username: mininet
+password: mininet
+```
+
+Inside the mininet terminal, create and retrieve the IP address of the VM:
+
+```
+sudo dhclient eth1
+ifconfig eth1
+```
+
+Copy the mn_code folder from local machine to the Mininet VM (copies to root, replace "mininet_ip" with the IP address from the VM.):
+
+```
+scp -r -P 22 mn_code mininet@<mininet_ip>:~/
+```
+
+Next up, create 4 local terminals. In all 4 of them, SSH into the Mininet VM:
+
+```
+ssh -Y -X mininet@<mininet_ip>
+```
+
+And you are all set up. You might have to update some programs.
+
+### 1 Mininet
+
+Mininet dependencies (if you get a X11 Error):
+
+```
+sudo xauth add `xauth list $DISPLAY`
+```
+
+To run Mininet:
+mn_code is placed in inside `soar/mn_code`
+
+```
+cd mn_code
+sudo mn --custom topology.py --topo topo --switch ovsk --controller remote -x
+```
+
+### 2 Ryu SDN Controller
+
+Ryu dependencies:
+
+```
+pip install gunicorn==20.1.0 eventlet==0.30.2
+```
+
+```
+pip install ryu
+```
+
+To run Ryu:
+
+```
+ryu-manager ryu.app.rest_firewall
+```
+
+### 3 Shark
+
+Shark dependencies:
+
+```
+sudo dpkg-reconfigure wireshark-common
+-> YES
+```
+
+```
+sudo chmod +x /usr/bin/dumpcap
+```
+
+```
+pip install pyshark
+```
+
+```
+pip install flask
+```
+
+```
+pip install requests
+```
+
+To run Shark:
+
+```
+cd mn_code
+python shark.py
+```
+
+### 4 Open Policy Agent
+
+Use the Docker image for running OPA:
+
+```
+docker run -p 8181:8181 openpolicyagent/opa \run --server --log-level debug
+```
+
+## SOAR
+
+SOAR is run on the local machine.
+
+Dependencies:
+
+```
+pip install requests
+```
+
+Inside the soar directory, run:
+
+```
+python soar.py <mininet_ip>
+```
+
+## Running Scenarios
+
+From the pop-up terminals after running mininet, you can run data through the factory components to the gateway. Currently only the MQTT gateway is properly configured.
+
+To run a gateway, find the **gw1_MQTT** terminal and run:
+
+```
+python gateway.py
+```
+
+To run data through a host, open one of the host terminals *(only DPS does something right now)* and run:
+
+```
+python host.py <data_file>
+```
+
+Press Ctrl+V to cancel the host program.
+
+If you want to reset, you have to exit and then re-run:
+
+1. Ryu
+2. OPA
+3. Shark
+4. SOAR
+
 
 
 ## User Guide for NeoDash
