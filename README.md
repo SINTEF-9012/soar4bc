@@ -31,7 +31,7 @@ Create an environment and install Python (v3.10), flask (v3.0.0), minio (v7.1.17
 ```
 conda env create -f environment.yml
 ```
-To verify installation: 
+To verify the installation: 
 ```
 conda env list
 ```
@@ -67,26 +67,26 @@ docker run -p 5003:5003 --network=sindit_network -it statistics
 ### Populating Database and Dashboard
 
 
-Open the minio database in browser: [http://localhost:9099](http://localhost:9099).
-Log in with user name and password (detailed in docker compose file).
+Open the minio database in the browser: [http://localhost:9099](http://localhost:9099).
+Log in with the user name and password (detailed in the docker-compose file).
 
 Create a user and set the policy to readwrite. The access and secret keys need to be updated in the `connection/minio_config.ini` file, and in `statistics/minio_config.ini`.
-Create a bucket and update the bucket name in `connection/minio_api.py` file. Add the PCAP file to the bucket. 
+Create a bucket and update the bucket name in the `connection/minio_api.py` file. Add the PCAP file to the bucket. 
 
-Open the neo4j database in browser: [http://localhost:7474](http://localhost:7474).
-Log in with user name and password (detailed in docker compose file).
+Open the neo4j database in the browser: [http://localhost:7474](http://localhost:7474).
+Log in with the user name and password (detailed in the docker-compose file).
 
 Create a user and set the policy to readwrite. The access and secret keys need to be updated in the connection/minio_config.ini file.
-Create a bucket and update the bucket name in connection/minio_api.py file. Add the file to the bucket. 
+Create a bucket and update the bucket name in the connection/minio_api.py file. Add the file to the bucket. 
 
-Open the dashboard in browser: [http://localhost:3000](http://localhost:3000), choose "New Dashboard". 
-Log in with user name: neo4j, password: sindit-neo4j.
+Open the dashboard in the browser: [http://localhost:3000](http://localhost:3000), and choose "New Dashboard". 
+Log in with the username: neo4j and the password: sindit-neo4j.
 
 **Create database**: If the database is empty, you can load one by opening Neo4j Browser at [http://localhost:7474](http:localhost:7474). Copy the content in `samples/sample-data-updated.cypher` and paste it into the query box of the Neo4j browser, then execute the query. This query contains one example static data node and one analytics node. The name/type of the PCAP file needs to correspond to the endpoint/type properties of the static node and vice-versa. 
 
-**Load dashboard**: To load a dashboard, press load dashboard button in left side panel. Choose "Select from file", and choose a sample database (e.g. dashboard-2023-12-05.json) in the "samples" folder in this repo. 
+**Load dashboard**: To load a dashboard, press load dashboard button in the left side panel. Choose "Select from file", and choose a sample database (e.g. dashboard-2023-12-05.json) in the "samples" folder in this repo. 
 
-If the database is empty, you can load one by opening Neo4j Browser at http://localhost:7474 (log in using details in docker compose file). Copy the content in samples/sample-data-updated.cypher and paste it into the query box of the Neo4j browser, then execute the query. The name/type of the object file added in Minio needs to correspond to the endpoint/type properties of the static node. 
+If the database is empty, you can load one by opening Neo4j Browser at http://localhost:7474 (log in using details in docker-compose file). Copy the content in samples/sample-data-updated.cypher and paste it into the query box of the Neo4j browser, then execute the query. The name/type of the object file added in Minio needs to correspond to the endpoint/type properties of the static node. 
 
 ## Running SOAR Experiment based on MiniNet (Based on the work by Valtteri)
 
@@ -125,7 +125,7 @@ https://mininet.org/download/
 
 To ensure as little conflicts as possible, you should use option 1 from the guide with VirtualBox and the VM image provided, set up with a **Host-only Adapter on Adapter 2**. This should make it so that you are connecting to Mininet on eth1. Remember to allocate computing resources to the VM in the VirtualBox settings.
 
-This test bed has been developed on Windows 11 with WSL and VirtualBox with Mininet VM.
+This testbed has been developed and verified on MAC with VirtualBox 7.0 with Mininet VM.
 
 On VirtualBox you can then start the Mininet VM. The username and password is:
 
@@ -247,7 +247,7 @@ python soar.py <mininet_ip>
 
 ## Running Scenarios
 
-From the pop-up terminals after running mininet, you can run data through the factory components to the gateway. Currently only the MQTT gateway is properly configured.
+From the pop-up terminals after running mininet, you can run data through the factory components to the gateway. Currently, only the MQTT gateway is properly configured.
 
 To run a gateway, find the **gw1_MQTT** terminal and run:
 
@@ -279,7 +279,7 @@ https://neo4j.com/labs/neodash/2.2/user-guide/).
 
 ## Publish Dashboards
 
-After building a dashboard, you can chose to deploy a read-only, standalone instance for users. See [Publishing](https://neo4j.com/labs/neodash/2.2/user-guide/publishing/) for more on publishing dashboards.
+After building a dashboard, you can choose to deploy a read-only, standalone instance for users. See [Publishing](https://neo4j.com/labs/neodash/2.2/user-guide/publishing/) for more on publishing dashboards.
 
 
 ## Questions / Suggestions
@@ -289,4 +289,4 @@ If you have any questions about NeoDash, please reach out to the maintainers:
 - Connect with us on the [Neo4j Discord](https://neo4j.com/developer/discord/).
 - Create a post on the Neo4j [Community Forum](https://community.neo4j.com/).
 
-> NeoDash is a free and open-source tool developed by the Neo4j community - not an official Neo4j product. If you have a need for a commercial agreement around training, custom extensions or other services, please contact the [Neo4j Professional Services](https://neo4j.com/professional-services/) team.
+> NeoDash is a free and open-source tool developed by the Neo4j community - not an official Neo4j product. If you need a commercial agreement for training, custom extensions, or other services, please contact the [Neo4j Professional Services](https://neo4j.com/professional-services/) team.
