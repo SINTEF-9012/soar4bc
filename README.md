@@ -271,6 +271,101 @@ If you want to reset, you have to exit and then re-run:
 4. SOAR
 
 
+### Running SOAR DDoS Experiment based on MiniNet 
+All the files related to DDoS-Honeypot experiment are placed under DDoS_Honeypot Folder which is under the soar folder. 
+
+# Prerequisite
+Before running the experiment, make sure to install the Pentbox Honeypot Server and the required packages.  
+
+# PentBox
+
+-----------------
+How to Install
+-----------------
+
+```
+git clone https://github.com/technicaldada/pentbox
+```
+
+```
+cd pentbox
+```
+
+```
+tar -zxvf pentbox.tar.gz
+```
+
+```
+cd pentbox
+```
+
+```
+./pentbox.rb
+```
+
+Then select option number 2 and then option number 3. The Pentbox honeypot server should be up and running.
+
+
+
+Next, install the required packages by running the following command:
+```
+pip3 install -r requirements.txt
+```
+
+## Manual
+Create a virtual environment via Python: 
+```
+python3 -m venv venv
+```
+
+Activate the virtual environment:
+```
+source venv/bin/activate
+```
+
+Install all requirements as described in #Prerequisite.
+
+Open separate terminals for each of the following steps:
+
+1. Start the Ryu controller by running: 
+```
+ryu-manager customCtrl.py
+```
+2. Start the Toy Factory Digital Twin Network with honeypot server topology by running: 
+```
+python3 topology.py
+```
+3. Start the collecting and inspecting program by running: 
+```
+source collect.sh
+```
+
+4. Simulate Normal Traffic in Toy Factory Digital Twin Network by running (example below). We can vary for different hosts: 
+```
+h4_DPS source gentraffic.sh gw1_MQTT
+```
+
+5. Simulate DDoS Traffic in Toy Factory Digital Twin Network by running (example below). 
+```
+<IP_of_Host (h4_DPS)> hping3 --rand-source --flood <IP_of_Gateway (gw1_MQTT)>
+```
+```
+hping3 -c 1000000 -i u1000 <IP_of_Target_Host/Gateway>
+```
+
+
+## Description
+```.result```: Represents the classification result from the model, indicating whether the system is under a DDoS attack (true or false).\
+```gentraffic.sh```: This script generates normal network traffic to simulate regular network operations within the Toy Factory Digital Twin. Ex: Run it as h4_DPS source gentraffic.sh gw1_MQTT\
+```topology.py```: Toy Factory Digital Twin Network Topology with Honeypot Server. \
+```realtime.csv```: This CSV file contains characteristic values extracted from network data, which are used for DDoS attack classification. \
+```inspector```:  This script makes a call to the machine learning model for classifying given characteristic values as indicative of a DDoS attack or not. \
+```customCtrl.py```: This Python script implements a custom Ryu controller to manage network operations, including handling flow rules and packet forwarding. \
+```computeTuples.py```: This Python script computes 5 characteristic values from raw data collected from the network environment. \
+```collect.sh```:  This shell script collects records from flow tables on OpenFlow switches, processes them, and extracts raw data for analysis. \
+
+# Reference for DDoS Attack Simulation & Experiments
+[1] [DDoSDN](https://github.com/icesonata/DDoSDN)\
 
 ## User Guide for NeoDash
 
