@@ -362,10 +362,10 @@ hping3 -c 1000000 -i u1000 <IP_of_Target_Host/Gateway>
 ```inspector```:  This script makes a call to the machine learning model for classifying given characteristic values as indicative of a DDoS attack or not. \
 ```customCtrl.py```: This Python script implements a custom Ryu controller to manage network operations, including handling flow rules and packet forwarding. \
 ```computeTuples.py```: This Python script computes 5 characteristic values from raw data collected from the network environment. \
-```collect.sh```:  This shell script collects records from flow tables on OpenFlow switches, processes them, and extracts raw data for analysis. \
+```collect.sh```:  This shell script collects records from flow tables on OpenFlow switches, processes them, and extracts raw data for analysis. 
 
-# Reference for DDoS Attack Simulation & Experiments
-[1] [DDoSDN](https://github.com/icesonata/DDoSDN)\
+## Reference for DDoS Attack Simulation & Experiments
+[1] [DDoSDN](https://github.com/icesonata/DDoSDN)
 
 ## User Guide for NeoDash
 
