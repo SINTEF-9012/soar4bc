@@ -1,0 +1,47 @@
+{
+    "SecurityAlerts": [
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "probe_id": 3,
+            "property": 56,
+            "type": "attack",
+            "verdict": "detected",
+            "description": "Probable SYN flooding attack (Half TCP handshake without TCP RST)"
+        }
+    ],
+    "PerformanceIndicators": [
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "description": "economic_taz_1.scxml",
+            "value": 0.986
+        },
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "description": "economic_taz_n.scxml",
+            "value": 1.0
+        },
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "description": "social_taz_1.scxml",
+            "value": 0.653
+        },
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "description": "social_taz_n.scxml",
+            "value": 0.895
+        }
+    ],
+    "ResilienceIndicators":
+    [
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "property": "robustness",
+            "value": "12%"
+        },
+        {
+            "time_stamp": "2024-02-23T13:15:53.253826Z",
+            "property": "recovery-time",
+            "value": "1h36m43s"
+        }
+    ]
+}

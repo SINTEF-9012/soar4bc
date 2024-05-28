@@ -1,0 +1,277 @@
+{
+  "type": "playbook",
+  "spec_version": "cacao-2.0",
+  "id": "playbook--d6d3cc15-3b47-47c6-bcf5-39bd71ca9cc0",
+  "name": "SOAR4BC Playbook",
+  "description": "This is a SOAR4BC Playbook for DDoS Attack Detection in SINDIT Toy Factor Digital Twin",
+  "playbook_types": [
+    "engagement"
+  ],
+  "playbook_activities": [
+    "eliminate-risk"
+  ],
+  "created_by": "identity--0f882389-8f9e-43ef-8049-937f6e2144e6",
+  "created": "2024-05-07T08:20:42.124Z",
+  "modified": "2024-05-07T08:20:42.124Z",
+  "revoked": false,
+  "derived_from": [
+    "playbook--7804b5db-0589-4d8f-a1b4-9eb123283850",
+    "playbook--25f017c9-9cc9-4ba8-b5f5-cb9d0ed31c7c"
+  ],
+  "workflow_start": "start--80e82742-b47e-483e-9998-4a7f3e703fb7",
+  "workflow": {
+    "start--80e82742-b47e-483e-9998-4a7f3e703fb7": {
+      "name": "SOAR4BC DDoS Playbook",
+      "description": "This is a playbook for SOAR4BC DDoS",
+      "owner": "playbook--0392cbeb-bd2a-4b03-80f4-97e54be0c1b9",
+      "on_completion": "action--f338e15d-9756-4730-b935-fc867ef611f3",
+      "step_extensions": {
+        "0": [
+          "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+        ],
+        "": "SOAR4BC",
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 340,
+          "y": 220,
+          "width": 60,
+          "height": 40,
+          "outgoing_connections": [
+            {
+              "type": "on-completion",
+              "x": [
+                370,
+                370,
+                445
+              ],
+              "y": [
+                260,
+                400,
+                400
+              ]
+            }
+          ]
+        }
+      },
+      "type": "start"
+    },
+    "action--f338e15d-9756-4730-b935-fc867ef611f3": {
+      "name": "Monitor Data Traffic ",
+      "description": "SOAR4BC monitors the data traffic of the SINDIT toy factory digital twin.",
+      "on_success": "if-condition--2b9eb999-dac0-4b81-9817-f4766f15707d",
+      "step_extensions": {
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 445,
+          "y": 370,
+          "width": 150,
+          "height": 60,
+          "outgoing_connections": [
+            {
+              "type": "on-success",
+              "x": [
+                595,
+                730,
+                730
+              ],
+              "y": [
+                400,
+                400,
+                270
+              ]
+            }
+          ]
+        }
+      },
+      "type": "action",
+      "commands": [
+        {
+          "type": "bash",
+          "description": "Run the bash script at terminal to monitor the data traffic of SINDIT toy factory digital twin",
+          "version": "1.0",
+          "playbook_activity": "analyze-collected-data",
+          "command": "source collect.sh"
+        }
+      ],
+      "agent": "organization--d35521c5-4d46-4333-81c3-517a751bdce9"
+    },
+    "if-condition--2b9eb999-dac0-4b81-9817-f4766f15707d": {
+      "name": "Check for DDoS Attack",
+      "description": "SOAR4BC monitors the data traffic of the SINDIT toy factory digital twin for the possible DDoS attack.",
+      "step_extensions": {
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 670,
+          "y": 210,
+          "width": 120,
+          "height": 60,
+          "outgoing_connections": [
+            {
+              "type": "on-true",
+              "x": [
+                790,
+                895
+              ],
+              "y": [
+                240,
+                240
+              ]
+            },
+            {
+              "type": "on-false",
+              "x": [
+                670,
+                520,
+                520
+              ],
+              "y": [
+                240,
+                240,
+                370
+              ]
+            }
+          ]
+        }
+      },
+      "type": "if-condition",
+      "condition": "DDoS Attack",
+      "on_true": "action--70d0c787-4e7f-41bf-83ce-2360fe539526",
+      "on_false": "action--f338e15d-9756-4730-b935-fc867ef611f3"
+    },
+    "playbook-action--2563e257-d735-4bcd-9830-1e65a017bca9": {
+      "name": "Activate Pentbox Honeypot Server",
+      "description": "SOAR4BC will activate pentbox honeypot server and redirects the data traffic on detection of DDoS attack",
+      "on_success": "action--f1e1cdb1-957c-47da-856a-a54681698857",
+      "step_extensions": {
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 1130,
+          "y": 210,
+          "width": 120,
+          "height": 60,
+          "outgoing_connections": [
+            {
+              "type": "on-success",
+              "x": [
+                1190,
+                1190
+              ],
+              "y": [
+                270,
+                350
+              ]
+            }
+          ]
+        }
+      },
+      "type": "playbook-action",
+      "playbook_id": "soar4bc-playbook--a74d5427-5e97-42df-94e3-95923e49da16",
+      "playbook_version": "2024-05-07T07:46:00.000Z"
+    },
+    "action--f1e1cdb1-957c-47da-856a-a54681698857": {
+      "name": "Update SOAR4BC Dashboard",
+      "description": "SOAR4BC updates the Neo4j Dashboard for the action taken on detection of a DDoS attack",
+      "on_success": "end--8fdf51e6-9e02-4de2-916e-b3fdd68e0c21",
+      "step_extensions": {
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 1115,
+          "y": 350,
+          "width": 150,
+          "height": 60,
+          "outgoing_connections": [
+            {
+              "type": "on-success",
+              "x": [
+                1115,
+                850
+              ],
+              "y": [
+                380,
+                380
+              ]
+            }
+          ]
+        }
+      },
+      "type": "action",
+      "commands": [
+        {
+          "type": "http-api",
+          "description": "Update the SOAR4BC Neo4j dashboard",
+          "command": "http://localhost:7474/db/neo4j/tx/commit"
+        }
+      ],
+      "agent": "organization--d35521c5-4d46-4333-81c3-517a751bdce9"
+    },
+    "action--70d0c787-4e7f-41bf-83ce-2360fe539526": {
+      "name": "Notify the SOAR4BC administrator for the possible DDoS attack",
+      "description": "Here a human is in the loop to check and take necessary steps on detection of possible DDoS attack by the SOAR4BC.",
+      "on_success": "playbook-action--2563e257-d735-4bcd-9830-1e65a017bca9",
+      "step_extensions": {
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 895,
+          "y": 210,
+          "width": 150,
+          "height": 60,
+          "outgoing_connections": [
+            {
+              "type": "on-success",
+              "x": [
+                1045,
+                1130
+              ],
+              "y": [
+                240,
+                240
+              ]
+            }
+          ]
+        }
+      },
+      "type": "action",
+      "commands": [
+        {
+          "type": "bash",
+          "description": "The bash script will monitor the data traffic for the DDoS attack and raise the flag on detection of the possible DDoS attack.",
+          "version": "1.0",
+          "playbook_activity": "identify-indicators",
+          "command": "source collect.sh"
+        }
+      ],
+      "agent": "organization--d35521c5-4d46-4333-81c3-517a751bdce9"
+    },
+    "end--8fdf51e6-9e02-4de2-916e-b3fdd68e0c21": {
+      "name": "End ",
+      "description": "This is the end of SOAR4BC DDoS attack playbook.",
+      "step_extensions": {
+        "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+          "type": "coordinates",
+          "x": 790,
+          "y": 360,
+          "width": 60,
+          "height": 40
+        }
+      },
+      "type": "end"
+    }
+  },
+  "agent_definitions": {
+    "organization--d35521c5-4d46-4333-81c3-517a751bdce9": {
+      "type": "organization",
+      "name": "SINDIT Toy Factory Digital Twin",
+      "description": "SOAR4BC monitors the data traffic of the SINDIT toy factory Digital Twin "
+    }
+  },
+  "extension_definitions": {
+    "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f": {
+      "type": "extension-definition",
+      "name": "coordinates extension",
+      "description": "Coordinates extension for CACAO constructs for visualization purposes.",
+      "created_by": "identity--5abe695c-7bd5-4c31-8824-2528696cdbf1",
+      "schema": "https://raw.githubusercontent.com/cyentific-rni/cacao-coordinates-extension/main/schemas/coordinates.json",
+      "version": "1.0.0"
+    }
+  }
+}

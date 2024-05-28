@@ -1,0 +1,90 @@
+{
+  "_id": "g7d5hh19-34t7-51c0-vfw3-40nf01ne3uu5",
+  "created": "2024-05-13T14:48:12.883088",
+  "created_by": "identity--0f886589-8f9e-43ef-6571-12345e23245g5",
+  "description": "A Playbook for Security Orchestration, Automation and Response",
+  "external_reference": {
+    "PerformanceIndicators": [
+      {
+        "description": "economic_taz_1.scxml",
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "value": 0.986
+      },
+      {
+        "description": "economic_taz_n.scxml",
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "value": 1.0
+      },
+      {
+        "description": "social_taz_1.scxml",
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "value": 0.653
+      },
+      {
+        "description": "social_taz_n.scxml",
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "value": 0.895
+      }
+    ],
+    "ResilienceIndicators": [
+      {
+        "property": "robustness",
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "value": "12%"
+      },
+      {
+        "property": "recovery-time",
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "value": "1h36m43s"
+      }
+    ],
+    "SecurityAlerts": [
+      {
+        "description": "Probable SYN flooding attack (Half TCP handshake without TCP RST)",
+        "probe_id": 3,
+        "property": 56,
+        "time_stamp": "2024-02-23T13:15:53.253826Z",
+        "type": "attack",
+        "verdict": "detected"
+      }
+    ],
+    "_id": "a22e1740-695f-4fd4-bf05-9b46976d9a33"
+  },
+  "id": "playbook--g7d5hh19-34t7-51c0-vfw3-40nf01ne3uu5",
+  "spec_version": "0.1",
+  "type": "playbook",
+  "workflows": [
+    {
+      "actions": [
+        {
+          "action_name": "Start_honeypot",
+          "description": "Spin up honeypot server"
+        },
+        {
+          "action_name": "redirect_traffic",
+          "description": "redirect traffic to honeypot server"
+        }
+      ],
+      "description": "A playbook for incident response",
+      "name": "Honeypot",
+      "ranking": "43"
+    },
+    {
+      "actions": [
+        {
+          "action_name": "Block IP",
+          "description": "Update policy for new rule, that looks at given IP and then blocks it"
+        }
+      ],
+      "description": "A playbook for incident response",
+      "name": "Disable Communication",
+      "ranking": "21"
+    },
+    {
+      "actions": [{}],
+      "description": "A playbook for incident response",
+      "name": "do nothing",
+      "ranking": "0"
+    }
+  ]
+}

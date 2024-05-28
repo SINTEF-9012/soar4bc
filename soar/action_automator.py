@@ -1,4 +1,4 @@
-import requests
+import requests # type: ignore
 from data_processor import Data_Processor
 
 class Action_Automator:
