@@ -1,6 +1,6 @@
 package access_policies
 
 violation[packet.data] {
-    packet := input.packet
-    packet.data > 50
+	packet := input.packet
+    packet.data == 0
 }
