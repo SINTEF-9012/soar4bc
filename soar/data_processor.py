@@ -12,7 +12,7 @@ class Data_Processor:
 
                 new_value = ""
                 
-                if int_value == 0:
+                if int_value == 90:
                     new_value = "No Value"
 
                 elif int_value < 0:

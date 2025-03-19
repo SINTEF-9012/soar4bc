@@ -1,0 +1,120 @@
+{
+  "type": "playbook",
+  "spec_version": "cacao-2.0",
+  "id": "playbook--0392cbeb-bd2a-4b03-80f4-97e54be0c1a8",
+  "name": "SOAR4BC Playbook",
+  "description": "This is a playbook for SOAR4BC",
+  "created_by": "identity--3b8306a7-0014-49ab-9fb7-abcd60d0d45d",
+  "created": "2024-05-07T07:17:19.193Z",
+  "modified": "2024-05-07T07:17:19.194Z",
+  "revoked": false,
+  "derived_from": [
+    "playbook--ac936ac3-ee52-4a91-b84d-d56d44525823",
+    "playbook--d1d7c24f-cef7-4f92-807c-f266a00a4358",
+    "playbook--af4c3019-d4c0-4143-96c3-134ac41b603f"
+  ],
+  "workflow_start": "start--9339c898-3427-4da0-8b64-c3d761627cbf",
+  "workflow": {
+    "start--9339c898-3427-4da0-8b64-c3d761627cbf": {
+      "name": "Start of Playbook",
+      "description": "SOAR4BC playbook",
+      "on_completion": "action--a74d5427-5e97-42df-94e3-95923e49da16",
+      "type": "start"
+    },
+    "action--a74d5427-5e97-42df-94e3-95923e49da16": {
+      "name": "Check Violation",
+      "description": "Check for violations in data packets of the SINDIT toy factory digital twin ",
+      "on_success": "if-condition--9c654f27-a3ff-4f12-8502-853e2c5c17a5",
+      "step_extensions": {
+        "0": [
+          "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+        ]
+      },
+      "type": "action",
+      "commands": [
+        {
+          "type": "http-api",
+          "description": "OPA checks for policy violation for data tampering",
+          "version": "1.0",
+          "playbook_activity": "analyze-collected-data"
+        }
+      ],
+      "agent": "individual--3bddfec8-2c6d-4cf6-b424-c57e7f6d3e86",
+      "targets": [
+        "organization--c785283f-6648-40be-a68b-7f3a51005a2b"
+      ]
+    },
+    "if-condition--9c654f27-a3ff-4f12-8502-853e2c5c17a5": {
+      "name": "if_condition",
+      "step_extensions": {
+        "0": [
+          "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+        ],
+        "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+      },
+      "type": "if-condition",
+      "condition": "No Value",
+      "on_true": "playbook-action--80dda560-21a0-4157-85e9-d93be5e6a1da",
+      "on_false": "action--a74d5427-5e97-42df-94e3-95923e49da16"
+    },
+    "playbook-action--80dda560-21a0-4157-85e9-d93be5e6a1da": {
+      "name": "Disable Communication",
+      "description": "Disable firewall so that the incoming data from that host will be blocked",
+      "on_success": "action--407f8ae0-d358-48f2-b6e0-7e734946189c",
+      "step_extensions": {
+        "0": [
+          "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+        ],
+        "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+      },
+      "type": "playbook-action",
+      "playbook_id": "soar4bc-playbook--a74d5427-5e97-42df-94e3-95923e49da16",
+      "playbook_version": "2024-05-03T11:43:00.000Z"
+    },
+    "end--256c613b-43c3-4017-8e3d-5b494f20784c": {
+      "name": "End ",
+      "description": "End of Playbook",
+      "step_extensions": {
+        "": "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+      },
+      "type": "end"
+    },
+    "action--407f8ae0-d358-48f2-b6e0-7e734946189c": {
+      "name": "Update SOAR4BC Dashboard",
+      "description": "After taking action, the SOAR4BC dashboard is updated for visualization purposes",
+      "on_success": "end--256c613b-43c3-4017-8e3d-5b494f20784c",
+      "step_extensions": {
+        "0": [
+          "extension-definition--418ee24c-9cb1-46d9-afa5-309e01aabc7f"
+        ]
+      },
+      "type": "action",
+      "commands": [
+        {
+          "type": "http-api",
+          "description": "Update the Neo4j SOAR4BC Dashboard",
+          "playbook_activity": "prepare-engagement",
+          "command": "url = \"http://localhost:7474/db/neo4j/tx/commit\"\n                data = {\"statements\":[\n                    {\"statement\":\"CREATE (soar:SOAR)-[:RESPONSE]->(response:RESPONSE{soar_id:$soar_id, ip:$ip, reason:$reas, response:$resp, value:$value, source:$source})\",\n                    \"parameters\":{\"soar_id\":self.id, \"ip\": address, \"reas\":rule['Type'], \"resp\":rule['Response'], \"value\":value, \"source\":source}}]}\nresponse = requests.post(url, auth=('neo4j', 'sindit-neo4j'), json=data)"
+        }
+      ],
+      "agent": "individual--3bddfec8-2c6d-4cf6-b424-c57e7f6d3e86"
+    }
+  },
+  "agent_definitions": {
+    "individual--3bddfec8-2c6d-4cf6-b424-c57e7f6d3e86": {
+      "type": "individual",
+      "name": "Data violation as recorded by Open Policy Agent",
+      "description": "OPA checks the incoming data of the SINDIT toy factory digital twin and raises the flag if there is a deviation.",
+      "location": {
+        "name": "SOAR4BC"
+      }
+    }
+  },
+  "target_definitions": {
+    "organization--c785283f-6648-40be-a68b-7f3a51005a2b": {
+      "type": "organization",
+      "name": "SINDIT Toy Factory Digital Twin",
+      "description": "Target is SINDIT Toy Factory Digital Twin"
+    }
+  }
+}
