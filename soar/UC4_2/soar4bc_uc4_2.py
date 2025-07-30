@@ -1,400 +1,580 @@
-from flask import Flask, request, jsonify
-import requests
+"""
+SOAR4BC - UC4._
+"""
+
 import json
+import logging
+import subprocess
 import threading
 import time
-import subprocess
-import os
-import pytz
-import logging
-import warnings
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import datetime
+from typing import Dict, List, Optional, Any
+import pytz
+import requests
+from flask import Flask
 from kafka import KafkaConsumer, KafkaProducer
-import json
 
-# Suppress InsecureRequestWarning
-warnings.filterwarnings('ignore', 'Unverified HTTPS request')
+# Suppress SSL warnings
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-
-#app = Flask(__name__)
-
-# Kafka Configuration
-KAFKA_SERVER = 'kafka.dynabic.dev:9092'
-TOPIC = 'UC4.SOAR4BC.playbook'
-RESULT_TOPIC = 'UC4.SOAR4BC.result'
-
-# Configure KAFKA SOAR4BC Password (XXXX)
-# Configure Kafka producer
-def create_kafka_producer():
-    return KafkaProducer(
-        bootstrap_servers=[KAFKA_SERVER],
-        security_protocol='SASL_PLAINTEXT',
-        sasl_mechanism='PLAIN',
-        sasl_plain_username='soar4bc',
-        sasl_plain_password='XXXXX',
-        value_serializer=lambda x: json.dumps(x).encode('utf-8')
-    )
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
-# Clean up old data from Neo4J database
-def cleanup_neo4j_dashboard():
-    try:
-        url = "http://localhost:7474/db/neo4j/tx/commit"
-        data = {
-            "statements": [
-                {
-                    "statement": "MATCH (s:SOAR)-[r:RESPONSE]->(resp:RESPONSE) DELETE s, r, resp"
-                },
-                {
-                    "statement": "MATCH (a:Attacker) DELETE a"
-                }
-            ]
-        }
-        response = requests.post(url, auth=('neo4j', 'sindit-neo4j'), json=data)
-    except (KeyboardInterrupt, requests.exceptions.RequestException) as e:
-            print(e)
-            print("[ERROR] No Connection to Neo4j database")
-
-def update_attacker_node_do_nothing(attacker_ip):
-    #cleanup_neo4j_dashboard()
-    try:
-        # Define Neo4j URL
-        url = "http://localhost:7474/db/neo4j/tx/commit"
-        
-        # Current timestamp (use CEST time)
-        cest_tz = pytz.timezone('Europe/Berlin')
-        timestamp = datetime.now(cest_tz).strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Query to create or update the Attacker node with status 'blocked'
-        query = """
-        MERGE (a:Attacker {ip: $attacker_ip})
-        ON CREATE SET a.status = 'Not Blocked', a.timestamp = $timestamp
-        ON MATCH SET a.status = 'Not Blocked', a.timestamp = $timestamp
-        """
-        
-        # Data for creating/updating attacker node
-        data = {
-            "statements": [
-                {
-                    "statement": query,
-                    "parameters": {
-                        "attacker_ip": attacker_ip,
-                        "timestamp": timestamp
-                    }
-                }
-            ]
-        }
-        
-        response = requests.post(url, auth=('neo4j', 'sindit-neo4j'), json=data)
-    except Exception as e:
-        print(f"Error creating/updating attacker node: {e}")
-
-
-def update_attacker_node(attacker_ip):
-    #cleanup_neo4j_dashboard()
-    try:
-        # Define Neo4j URL
-        url = "http://localhost:7474/db/neo4j/tx/commit"
-        
-        # Current timestamp (use CEST time)
-        cest_tz = pytz.timezone('Europe/Berlin')
-        timestamp = datetime.now(cest_tz).strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Query to create or update the Attacker node with status 'blocked'
-        query = """
-        MERGE (a:Attacker {ip: $attacker_ip})
-        ON CREATE SET a.status = 'Blocked', a.timestamp = $timestamp
-        ON MATCH SET a.status = 'Blocked', a.timestamp = $timestamp
-        """
-        
-        # Data for creating/updating attacker node
-        data = {
-            "statements": [
-                {
-                    "statement": query,
-                    "parameters": {
-                        "attacker_ip": attacker_ip,
-                        "timestamp": timestamp
-                    }
-                }
-            ]
-        }
-        
-        response = requests.post(url, auth=('neo4j', 'sindit-neo4j'), json=data)
-    except Exception as e:
-        print(f"Error creating/updating attacker node: {e}")
-
-# Neo4J update function with logging, and timestamps
-def update_neo4j_dashboard(attacker_ip, response, reason):
-    cleanup_neo4j_dashboard()  # Clean up old data before updating
-    url = "http://localhost:7474/db/neo4j/tx/commit"
+@dataclass
+class Config:
+    """Configuration settings for the SOAR4BC system"""
+    # Kafka Configuration
+    KAFKA_SERVER: str = 'kafka.dynabic.dev:9092'
+    KAFKA_USERNAME: str = 'soar4bc'
+    KAFKA_PASSWORD: str = '***********'
+    PLAYBOOK_TOPIC: str = 'UC4.SOAR4BC.playbook'
+    RESULT_TOPIC: str = 'UC4.SOAR4BC.result'
     
-    # Get the current timestamp
-    cest_tz = pytz.timezone('Europe/Berlin')  # CEST is the same as Europe/Berlin
-    timestamp = datetime.now(cest_tz).strftime("%Y-%m-%d %H:%M:%S")
-
-    # Create a new RESPONSE node with timestamp
-    create_query = (
-        "MERGE (s:SOAR {ip: $attacker_ip}) "
-        "CREATE (s)-[:RESPONSE]->(resp:RESPONSE {ip: $attacker_ip, response: $response, reason: $reason, timestamp: $timestamp})"
-    )
+    # Neo4j Configuration
+    NEO4J_URL: str = "http://localhost:7474/db/neo4j/tx/commit"
+    NEO4J_USERNAME: str = 'neo4j'
+    NEO4J_PASSWORD: str = 's*****-*****'
     
-    data = {
-        "statements": [
-            {
-                "statement": create_query,
-                "parameters": {
-                    "attacker_ip": attacker_ip,
-                    "response": response,
-                    "reason": reason,
-                    "timestamp": timestamp
-                }
+    # External APIs
+    PFSENSE_URI: str = "https://192.168.61.5/api/v2/firewall/rule"
+    PFSENSE_API_KEY: str = '******************'
+
+    # System Configuration
+    TIMEZONE: str = 'Europe/Berlin'
+    
+class TimeTracker:
+    """Utility class for tracking execution times"""
+    
+    @staticmethod
+    def get_timestamp(timezone: str = Config.TIMEZONE) -> str:
+        """Get current timestamp in specified timezone"""
+        tz = pytz.timezone(timezone)
+        return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+    
+    @staticmethod
+    def time_execution(func_name: str):
+        """Decorator to time function execution"""
+        def decorator(func):
+            def wrapper(*args, **kwargs):
+                start_time = time.time()
+                result = func(*args, **kwargs)
+                execution_time = time.time() - start_time
+                logger.info(f"{func_name} execution time: {execution_time:.6f} seconds")
+                return result
+            return wrapper
+        return decorator
+
+
+class PlaybookParser:
+    """Handles parsing of security playbooks"""
+    
+    SUPPORTED_ACTIONS = {
+        "Block IP Firewall", 
+        "Start Honeypot Server",
+        "Redirect Traffic",
+        "Reset Routing",
+        "Stop Honeypot Server",
+        "Do Nothing"
+    }
+    
+    @staticmethod
+    def extract_action(playbook_data: Dict[str, Any]) -> Optional[str]:
+        """Extract action from playbook data"""
+        try:
+            workflow = playbook_data.get("workflow", {})
+            for key, value in workflow.items():
+                if value.get("type") == "action":
+                    action_name = value.get("name")
+                    if action_name in PlaybookParser.SUPPORTED_ACTIONS:
+                        return action_name
+                elif value.get("name") == "start workflow Do Nothing":
+                    return "Do Nothing"
+        except Exception as e:
+            logger.error(f"Error extracting action: {e}")
+        return None
+    
+    @staticmethod
+    def extract_ip_from_playbook(playbook_data: Dict[str, Any]) -> Optional[str]:
+        """Extract attacker IP from playbook data"""
+        try:
+            external_references = playbook_data.get("external_references", [])
+            for ref in external_references:
+                if ref.get("type") == "bundle":
+                    for obj in ref.get("objects", []):
+                        if obj.get("type") == "ipv4-addr":
+                            ip = obj.get("value")
+                            if ip != "0.0.0.1": 
+                                return ip
+        except Exception as e:
+            logger.error(f"Error extracting IP: {e}")
+        return None
+
+
+class Neo4jDashboard:
+    """Handles Neo4j database operations for dashboard updates"""
+    
+    def __init__(self, config: Config):
+        self.url = config.NEO4J_URL
+        self.auth = (config.NEO4J_USERNAME, config.NEO4J_PASSWORD)
+    
+    def cleanup_old_data(self):
+        """Clean up old data from Neo4j database"""
+        try:
+            data = {
+                "statements": [
+                    {"statement": "MATCH (s:SOAR)-[r:RESPONSE]->(resp:RESPONSE) DELETE s, r, resp"},
+                    {"statement": "MATCH (a:Attacker) DELETE a"}
+                ]
             }
-        ]
-    }
-
-    # Perform the update
-    try:
-        response = requests.post(url, auth=('neo4j', 'sindit-neo4j'), json=data)
-        if response.status_code == 200:
-            print(f"Neo4J dashboard updated successfully at {timestamp}")
-        else:
-            print(f"Failed to update Neo4J dashboard. Status code: {response.status_code}")
-    except Exception as e:
-        print(f"Error updating Neo4J dashboard: {e}")
-
-def kafka_playbook_consumer():
-    """
-    Kafka consumer function to receive security playbooks
-    """
-    consumer = KafkaConsumer(
-        TOPIC, 
-        bootstrap_servers=[KAFKA_SERVER], 
-        security_protocol='SASL_PLAINTEXT', 
-        sasl_mechanism='PLAIN', 
-        sasl_plain_username='soar4bc', 
-        sasl_plain_password='XXXXX', 
-        auto_offset_reset='earliest',
-        enable_auto_commit=True, 
-        value_deserializer=lambda x: json.loads(x.decode('utf-8')) if x else None
-    )
-
-    print(f'Listening for messages on topic: {TOPIC}')
+            requests.post(self.url, auth=self.auth, json=data)
+        except Exception as e:
+            logger.error(f"Error cleaning up Neo4j: {e}")
     
-    try:
-        for message in consumer:
-            try:
-                # Parse the Kafka message
-                playbook_data = message.value
-                
-                # Log received playbook
-                #logging.info(f"Received playbook from Kafka: {playbook_data}")
-                logging.info("Received Playbook from Kafka")
-                
-                # Extract the relevant action from the playbook
-                start_playbook_receive_time = time.time()
-                action = extract_action(playbook_data)
-                time_taken_playbook_extraction = time.time() - start_playbook_receive_time
-                logging.info(f"Playbook Extraction Time: {time_taken_playbook_extraction:.6f} seconds")
+    def update_attacker_status(self, attacker_ip: str, status: str):
+        """Update attacker node status"""
+        try:
+            timestamp = TimeTracker.get_timestamp()
+            query = """
+            MERGE (a:Attacker {ip: $attacker_ip})
+            ON CREATE SET a.status = $status, a.timestamp = $timestamp
+            ON MATCH SET a.status = $status, a.timestamp = $timestamp
+            """
+            data = {
+                "statements": [{
+                    "statement": query,
+                    "parameters": {
+                        "attacker_ip": attacker_ip,
+                        "status": status,
+                        "timestamp": timestamp
+                    }
+                }]
+            }
+            requests.post(self.url, auth=self.auth, json=data)
+            logger.info(f"Updated attacker {attacker_ip} status to: {status}")
+        except Exception as e:
+            logger.error(f"Error updating attacker node: {e}")
+    
+    def update_response(self, attacker_ip: str, response: str, reason: str):
+        """Update SOAR response in dashboard"""
+        self.cleanup_old_data()
+        try:
+            timestamp = TimeTracker.get_timestamp()
+            query = (
+                "MERGE (s:SOAR {ip: $attacker_ip}) "
+                "CREATE (s)-[:RESPONSE]->(resp:RESPONSE {ip: $attacker_ip, response: $response, reason: $reason, timestamp: $timestamp})"
+            )
+            data = {
+                "statements": [{
+                    "statement": query,
+                    "parameters": {
+                        "attacker_ip": attacker_ip,
+                        "response": response,
+                        "reason": reason,
+                        "timestamp": timestamp
+                    }
+                }]
+            }
+            response_obj = requests.post(self.url, auth=self.auth, json=data)
+            if response_obj.status_code == 200:
+                logger.info("Neo4j dashboard updated successfully")
+            else:
+                logger.error(f"Failed to update Neo4j dashboard: {response_obj.status_code}")
+        except Exception as e:
+            logger.error(f"Error updating Neo4j dashboard: {e}")
 
-                # Get attacker IP from the playbook
-                attacker_ip = get_attacker_ip(playbook_data)
-                
-                if attacker_ip:
-                    if action == "Block IP":
-                        start_action_automator_time = time.time()
-                        action_automator_pfsense(attacker_ip)
-                        time_taken_by_action_automator = time.time() - start_action_automator_time
-                        logging.info(f"Execution Time Taken by Action Automator: {time_taken_by_action_automator:.6f} seconds") 
-                    elif action == "Do Nothing":
-                        action_automator_do_nothing(attacker_ip) 
-                    else:
-                        logging.error(f"Unknown action: {action}")
-                else:
-                    logging.error("Attacker IP not found in playbook")
+
+class ActionExecutor(ABC):
+    """Abstract base class for action executors"""
+    
+    def __init__(self, config: Config, dashboard: Neo4jDashboard):
+        self.config = config
+        self.dashboard = dashboard
+    
+    @abstractmethod
+    def execute(self, attacker_ip: str) -> Dict[str, Any]:
+        """Execute the action and return result"""
+        pass
+    
+    def publish_result(self, producer: KafkaProducer, attacker_ip: str, 
+                      action: str, status: str, details: str, 
+                      human_in_loop: bool = False, human_decision: str = None):
+        """Publish action result to Kafka"""
+        try:
+            result_payload = {
+                "action": action,
+                "target_ip": attacker_ip,
+                "status": status,
+                "details": details,
+                "timestamp": TimeTracker.get_timestamp(),
+                "human_in_the_loop": "yes" if human_in_loop else "no",
+                "human_in_the_loop_decision": human_decision if human_in_loop else "auto"
+            }
+            producer.send(self.config.RESULT_TOPIC, result_payload)
+            producer.flush()
+            logger.info(f"Published action result to Kafka topic {self.config.RESULT_TOPIC}")
+        except Exception as e:
+            logger.error(f"Error publishing action result to Kafka: {e}")
+
+
+
+class FirewallBlockExecutor(ActionExecutor):
+    """Executor for pfSense firewall IP blocking"""
+    
+    @TimeTracker.time_execution("Firewall Block Action")
+    def execute(self, attacker_ip: str) -> Dict[str, Any]:
+        headers = {
+            'accept': 'application/json',
+            'x-api-key': self.config.PFSENSE_API_KEY,
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            "type": "block",
+            "interface": ["opt4"],
+            "ipprotocol": "inet",
+            "protocol": "tcp/udp",
+            "source": attacker_ip,
+            "destination": "192.168.61.50",
+            "enabled": "true",
+            "descr": "Custom Rule"
+        }
+        
+        logger.info(f"Blocking IP {attacker_ip} via pfSense")
+        
+        try:
+            response = requests.post(
+                self.config.PFSENSE_URI,
+                headers=headers,
+                data=json.dumps(payload),
+                verify=False
+            )
             
+            if response.status_code == 200:
+                logger.info(f"Successfully blocked {attacker_ip} via pfSense")
+                self.dashboard.update_response(
+                    attacker_ip,
+                    "Block Attacker IP by pfSense",
+                    "Potential DoS Attack Detected Against CSMS"
+                )
+                self.dashboard.update_attacker_status(attacker_ip, "Blocked")
+                return {"status": "success", "message": "IP blocked successfully"}
+            else:
+                logger.error(f"Failed to block {attacker_ip} via pfSense: {response.status_code}")
+                return {"status": "error", "message": f"Failed to block IP: {response.text}"}
+        except Exception as e:
+            logger.error(f"Error blocking IP via pfSense: {e}")
+            return {"status": "error", "message": str(e)}
+
+
+class TrafficRedirectExecutor(ActionExecutor):
+    """Executor for traffic redirection"""
+    
+    def _verify_redirection(self, virtual_ip: str, timeout: int = 5, retries: int = 3) -> bool:
+        """Verify traffic redirection by pinging the virtual IP"""
+        logger.info(f"Verifying traffic redirection by pinging {virtual_ip}")
+        
+        for attempt in range(retries):
+            try:
+                # Use ping command with timeout
+                ping_cmd = f"ping -c 1 -W {timeout} {virtual_ip}"
+                result = subprocess.run(
+                    ping_cmd, 
+                    shell=True, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=timeout + 2
+                )
+                
+                if result.returncode == 0:
+                    logger.info(f"Ping to {virtual_ip} successful on attempt {attempt + 1}")
+                    return True
+                else:
+                    logger.warning(f"Ping to {virtual_ip} failed on attempt {attempt + 1}: {result.stderr.strip()}")
+                    
+            except subprocess.TimeoutExpired:
+                logger.warning(f"Ping to {virtual_ip} timed out on attempt {attempt + 1}")
             except Exception as e:
-                logging.error(f"Error processing Kafka message: {e}")
+                logger.warning(f"Ping verification failed on attempt {attempt + 1}: {e}")
+            
+            # Wait before retry (except on last attempt)
+            if attempt < retries - 1:
+                time.sleep(1)
+        
+        logger.error(f"All {retries} ping attempts to {virtual_ip} failed")
+        return False
     
-    except KeyboardInterrupt:
-        print("Kafka Consumer stopped.")
-    finally:
-        consumer.close()
+    def execute(self, attacker_ip: str) -> Dict[str, Any]:
+        virtual_ip = "192.168.61.100"  # Virtual IP for traffic redirection verification
+        
+        try:
+            # Verify redirection by pinging virtual IP (Redirection is already set up)
+            logger.info(f"Checking traffic redirection status for {attacker_ip} to {virtual_ip}")
+            
+            if self._verify_redirection(virtual_ip):
+                logger.info(f"Traffic redirection verification successful for {attacker_ip}")
+                
+                self.dashboard.update_response(
+                    attacker_ip,
+                    "Verify Traffic Redirection to Virtual IP",
+                    f"Traffic Redirection Verified - Virtual IP {virtual_ip} Reachable"
+                )
+                self.dashboard.update_attacker_status(attacker_ip, "Redirecting Traffic")
+                
+                return {
+                    "status": "success", 
+                    "message": f"Traffic redirection to {virtual_ip} verified successfully",
+                    "virtual_ip": virtual_ip,
+                    "verification": "passed",
+                    "human_in_the_loop": True,
+                    "human_decision": "approved"
+                }
+            else:
+                logger.error(f"Traffic redirection verification failed for {attacker_ip}")
+                
+                self.dashboard.update_response(
+                    attacker_ip,
+                    "Verify Traffic Redirection to Virtual IP",
+                    f"Traffic Redirection Verification Failed - {virtual_ip} Not Reachable"
+                )
+                self.dashboard.update_attacker_status(attacker_ip, "Redirection Failed")
+                
+                return {
+                    "status": "error", 
+                    "message": f"Traffic redirection verification failed - {virtual_ip} not reachable",
+                    "virtual_ip": virtual_ip,
+                    "verification": "failed",
+                    "human_in_the_loop": True,
+                    "human_decision": "rejected"
+                }
+                
+        except Exception as e:
+            logger.error(f"Error during traffic redirection verification: {e}")
+            return {
+                "status": "error", 
+                "message": f"Error during verification: {str(e)}",
+                "virtual_ip": virtual_ip,
+                "verification": "error",
+                "human_in_the_loop": True,
+                "human_decision": "error"
+            }
 
-def start_kafka_consumer():
-    """
-    Start Kafka consumer in a separate thread
-    """
-    kafka_thread = threading.Thread(target=kafka_playbook_consumer, daemon=True)
-    kafka_thread.start()
-    return kafka_thread
-      
-def extract_action(playbook_data):
-    # Logic to extract the relevant action from the playbook
-    try:
-        # Navigate to the workflow section to find actions
-        workflow = playbook_data.get("workflow", {})
-        for key, value in workflow.items():
-            if value.get("type") == "action":
-                if value.get("name") == "Block IP":
-                    return "Block IP"
-                elif value.get("name") == "Block IP Firewall":
-                    return "Block IP"
-                elif value.get("name") == "Blocking IP":
-                    return "Block IP"
-            elif value.get("name") == "start workflow Do Nothing":
-                return "Do Nothing"
-    except Exception as e:
-        print(f"Error extracting action: {e}")
-    return None
 
 
-def action_automator_do_nothing(attacker_ip):
-    print("[ACTION AUTOMATOR] Received Action (Do Nothing) to Execute")
-    print("Updating Dashboard")
-    update_neo4j_dashboard(attacker_ip, "Do Nothing", "Nothing to Execute")
-    update_attacker_node_do_nothing(attacker_ip)
+class ResetRoutingExecutor(ActionExecutor):
+    """Executor for resetting routing and stopping honeypot"""
     
-    # Publish result to Kafka
-    publish_action_result(attacker_ip, "Do Nothing", "success", "No action was required")
+    def execute(self, attacker_ip: str) -> Dict[str, Any]:
+        try:
+            # Reset routing
+            reset_cmd = (
+                f"iptables -t nat -D PREROUTING -p tcp -s {attacker_ip} "
+                f"--dport 80 -j DNAT --to-destination {self.config.HONEYPOT_IP}:80"
+            )
+            subprocess.run(reset_cmd, shell=True, check=True)
+            logger.info(f"Routing reset for {attacker_ip}")
+            
+            # Stop honeypot
+            try:
+                find_process_cmd = "sudo lsof -t -i:80"
+                process_id = subprocess.check_output(find_process_cmd, shell=True).strip().decode('utf-8')
+                
+                if process_id:
+                    kill_cmd = f"sudo kill -9 {process_id}"
+                    subprocess.run(kill_cmd, shell=True, check=True)
+                    logger.info(f"Honeypot server stopped (PID: {process_id})")
+            except subprocess.CalledProcessError:
+                logger.info("No honeypot process found running on port 80")
+            
+            self.dashboard.update_response(
+                attacker_ip,
+                "Reset Routing and Stop Honeypot",
+                "Reset Routing and Honeypot Stopped After Mitigation"
+            )
+            self.dashboard.update_attacker_status(attacker_ip, "Quarantined: Reset Traffic and Stop Honeypot")
+            
+            return {"status": "success", "message": "Routing reset and honeypot stopped"}
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error resetting routing: {e}")
+            return {"status": "error", "message": str(e)}
 
-def action_automator_pfsense(attacker_ip):
-    # Define the ipsense API endpoint and headers
-    ipsense_uri = "https://192.168.61.5/api/v2/firewall/rule"
-    headers = {
-        'accept': 'application/json',
-        'x-api-key': 'db8b91b25d87da99ac8fa12655649c84',
-        'Content-Type': 'application/json'
-    }
 
-    # Construct the firewall rule payload to block the attacker's IP
-    # Updated payload as per the new requirements
-    ipsense_payload = {
-        "type": "block",
-        "interface": ["opt4"],
-        "ipprotocol": "inet",
-        "protocol": "tcp/udp",
-        "source": attacker_ip,  # Use the suspicious IP directly
-        "destination": "192.168.61.50",
-        "enabled": "true",
-        "descr": "Custom Rule"
-    }
+class DoNothingExecutor(ActionExecutor):
+    """Executor for do nothing action"""
+    
+    def execute(self, attacker_ip: str) -> Dict[str, Any]:
+        logger.info("Executing 'Do Nothing' action")
+        self.dashboard.update_response(attacker_ip, "Do Nothing", "Nothing to Execute")
+        self.dashboard.update_attacker_status(attacker_ip, "Not Blocked")
+        return {"status": "success", "message": "No action taken"}
 
-    print(f"[ACTION AUTOMATOR] Blocking IP {attacker_ip} by pfsense")
 
-    try:
-        # Send the POST request to ipsense with the firewall rule
-        response = requests.post(
-            ipsense_uri,
-            headers=headers,
-            data=json.dumps(ipsense_payload),
-            verify=False  # Disable SSL verification like --insecure
+class ActionFactory:
+    """Factory for creating action executors"""
+    
+    @staticmethod
+    def create_executor(action: str, config: Config, dashboard: Neo4jDashboard) -> Optional[ActionExecutor]:
+        """Create appropriate executor for the given action"""
+        executors = {
+            "Block IP Firewall": FirewallBlockExecutor,
+            "Redirect Traffic": TrafficRedirectExecutor,
+            "Reset Routing": ResetRoutingExecutor,
+            "Stop Honeypot Server": ResetRoutingExecutor,  # Same as reset routing
+            "Do Nothing": DoNothingExecutor
+        }
+        
+        executor_class = executors.get(action)
+        return executor_class(config, dashboard) if executor_class else None
+
+
+class KafkaManager:
+    """Manages Kafka connections and operations"""
+    
+    def __init__(self, config: Config):
+        self.config = config
+        self.kafka_config = {
+            'bootstrap_servers': [config.KAFKA_SERVER],
+            'security_protocol': 'SASL_PLAINTEXT',
+            'sasl_mechanism': 'PLAIN',
+            'sasl_plain_username': config.KAFKA_USERNAME,
+            'sasl_plain_password': config.KAFKA_PASSWORD
+        }
+    
+    def create_producer(self) -> KafkaProducer:
+        """Create Kafka producer"""
+        return KafkaProducer(
+            **self.kafka_config,
+            value_serializer=lambda x: json.dumps(x).encode('utf-8')
+        )
+    
+    def create_consumer(self) -> KafkaConsumer:
+        """Create Kafka consumer"""
+        return KafkaConsumer(
+            self.config.PLAYBOOK_TOPIC,
+            **self.kafka_config,
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            value_deserializer=lambda x: json.loads(x.decode('utf-8')) if x else None
         )
 
-        # Check if the request was successful
-        if response.status_code == 200:
-            #print(f"Response from pfsense: {response.status_code} - {response.text}")
-            print(f"Response from pfsense: {response.status_code}")
-            print("Updating Dashboard")
-            update_neo4j_dashboard(attacker_ip, "Block Attacker IP by pfsense", "Potential DoS attack detected by the ML Algorithm")
-            update_attacker_node(attacker_ip)
-            
-            # Publish result to Kafka
-            publish_action_result(attacker_ip, "Block IP", "success", "Firewall rule applied successfully")
-        else:
-            print(f"Failed to block IP by pfsense: {response.status_code} - {response.text}")
-            # Publish failure result to Kafka
-            publish_action_result(attacker_ip, "Block IP", "failure", f"Failed with status code: {response.status_code}")
 
-    except Exception as e:
-        print(f"Error while sending request to pfsense: {e}")
-        # Publish exception result to Kafka
-        publish_action_result(attacker_ip, "Block IP", "error", str(e))
-
-
-def get_attacker_ip(playbook_data=None):
-    """
-    Extract attacker IP from the playbook data received via Kafka.
-    If no playbook_data is provided, return a static IP for backward compatibility.
-    """
-    if playbook_data is None:
-        # Return static IP for backward compatibility (testing purposes)
-        return "192.168.61.57"
+class SOAROrchestrator:
+    """Main SOAR orchestrator that coordinates all components"""
     
-    try:
-        # Look for external_references in the playbook
-        external_refs = playbook_data.get("external_references", [])
-        
-        for ref in external_refs:
-            # Check if this reference contains objects 
-            if ref.get("type") == "bundle" and "objects" in ref:
-                objects = ref.get("objects", [])
+    def __init__(self, config: Config = None):
+        self.config = config or Config()
+        self.dashboard = Neo4jDashboard(self.config)
+        self.kafka_manager = KafkaManager(self.config)
+        self.producer = self.kafka_manager.create_producer()
+        self.app = Flask(__name__)
+    
+    def process_playbook(self, playbook_data: Dict[str, Any]):
+        """Process received playbook and execute appropriate action"""
+        try:
+            logger.info("Received playbook from Kafka")
+            
+            # Extract action and IP
+            start_time = time.time()
+            action = PlaybookParser.extract_action(playbook_data)
+            attacker_ip = PlaybookParser.extract_ip_from_playbook(playbook_data)
+            extraction_time = time.time() - start_time
+            logger.info(f"Playbook extraction time: {extraction_time:.6f} seconds")
+            
+            if not attacker_ip:
+                logger.error("Attacker IP not found in playbook")
+                return
+            
+            if not action:
+                logger.error("No valid action found in playbook")
+                return
+            
+            # Create and execute action
+            executor = ActionFactory.create_executor(action, self.config, self.dashboard)
+            if executor:
+                start_time = time.time()
+                result = executor.execute(attacker_ip)
+                execution_time = time.time() - start_time
+                logger.info(f"Action execution time: {execution_time:.6f} seconds")
+
+                human_in_loop = result.get("human_in_the_loop", False)
+                human_decision = result.get("human_decision", None)
                 
-                # Look for ipv4-addr objects
-                for obj in objects:
-                    if obj.get("type") == "ipv4-addr":
-                        # Check if this is the source IP (attacker IP)
-                        obj_id = obj.get("id", "")
-                        if "src_asset_uuid" in obj_id or obj_id.startswith("ipv4-addr--"):
-                            ip_value = obj.get("value")
-                            if ip_value:
-                                logging.info(f"Extracted attacker IP from playbook: {ip_value}")
-                                return ip_value
+                # Publish result
+                executor.publish_result(
+                    self.producer, attacker_ip, action,
+                    result["status"], result["message"],
+                    human_in_loop, human_decision
+                )
+            else:
+                logger.error(f"Unknown action: {action}")
         
-        # If no IP found in external_references, log warning and return None
-        logging.warning("No attacker IP found in playbook external_references")
-        return None
+        except Exception as e:
+            logger.error(f"Error processing playbook: {e}")
+    
+    def kafka_consumer_loop(self):
+        """Main Kafka consumer loop"""
+        consumer = self.kafka_manager.create_consumer()
+        logger.info(f"Listening for messages on topic: {self.config.PLAYBOOK_TOPIC}")
         
-    except Exception as e:
-        logging.error(f"Error extracting attacker IP from playbook: {e}")
-        return None
+        try:
+            for message in consumer:
+                if message.value:
+                    self.process_playbook(message.value)
+        except KeyboardInterrupt:
+            logger.info("Kafka Consumer stopped by user")
+        except Exception as e:
+            logger.error(f"Error in Kafka consumer loop: {e}")
+        finally:
+            consumer.close()
+    
+    def start_kafka_consumer(self):
+        """Start Kafka consumer in a separate thread"""
+        kafka_thread = threading.Thread(target=self.kafka_consumer_loop, daemon=True)
+        kafka_thread.start()
+        return kafka_thread
+    
+    def initialize_system(self):
+        """Initialize the SOAR system"""
+        def print_event_handler_message():
+            self.dashboard.cleanup_old_data()
+            start_time = time.time()
+            time.sleep(7)  # Wait for detection system
+            logger.info("Security threat detected")
+            detection_time = time.time() - start_time
+            logger.info(f"Threat detection processing time: {detection_time:.6f} seconds")
+            logger.info("SOAR4BC Orchestrator Ready - Waiting for Playbook via Kafka...")
+        
+        # Start event handler thread
+        threading.Thread(target=print_event_handler_message, daemon=True).start()
+        
+        # Start Kafka consumer
+        return self.start_kafka_consumer()
+    
+    def run(self):
+        """Run the SOAR system"""
+        logger.info("Starting SOAR4BC System...")
+        kafka_thread = self.initialize_system()
+        
+        try:
+            # Keep main thread alive
+            kafka_thread.join()
+        except KeyboardInterrupt:
+            logger.info("SOAR system stopped by user")
+        except Exception as e:
+            logger.error(f"Error running SOAR system: {e}")
 
-def print_event_handler_message():
-    cleanup_neo4j_dashboard()
-    start_detection_time = time.time()  # Start timing
-    time.sleep(7)  # Wait for 7 seconds
-    print("[EVENT HANDLER] Potential Denial of Service (DoS) attack detected by the ML Algorithm.")
-    time_taken_detection = time.time() - start_detection_time  # Calculate time taken
-    logging.info(f"DDoS Attack Detection Time: {time_taken_detection:.6f} seconds")
 
-    print("[ORCHESTRATOR] Waiting for Playbook via Kafka")
+def main():
+    """Main entry point"""
+    soar = SOAROrchestrator()
+    soar.run()
 
-def publish_action_result(attacker_ip, action, status, details):
-    """
-    Publish action result to Kafka result topic
-    """
-    try:
-        # Create producer if not exists
-        producer = create_kafka_producer()
-        
-        # Get the current timestamp
-        cest_tz = pytz.timezone('Europe/Berlin')
-        timestamp = datetime.now(cest_tz).strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Create the result payload
-        result_payload = {
-            "action": action,
-            "target_ip": attacker_ip,
-            "status": status,
-            "details": details,
-            "timestamp": timestamp
-        }
-        
-        # Send the result to Kafka
-        producer.send(RESULT_TOPIC, result_payload)
-        producer.flush()
-        logging.info(f"Published action result to Kafka topic {RESULT_TOPIC}")
-    except Exception as e:
-        logging.error(f"Error publishing action result to Kafka: {e}")
 
 if __name__ == '__main__':
-    # Start the thread to print the event handler message
-    threading.Thread(target=print_event_handler_message).start()
-    
-    # Start Kafka consumer thread
-    kafka_consumer_thread = start_kafka_consumer()
-
-    # Keep the main thread running
-    kafka_consumer_thread.join()
+    main()
