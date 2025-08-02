@@ -596,10 +596,10 @@ class SOAROrchestrator:
             self.dashboard.cleanup_old_data()
             start_time = time.time()
             time.sleep(7)  # Wait for detection system
-            logger.info("Potential Man-in-the-Middle (MiTM) attack against CSMS detected")
+            logger.info("Security threat detected")
             detection_time = time.time() - start_time
-            logger.info(f"MiTM Attack Detection Time: {detection_time:.6f} seconds")
-            logger.info("Waiting for Playbook via Kafka...")
+            logger.info(f"Threat detection processing time: {detection_time:.6f} seconds")
+            logger.info("SOAR4BC Orchestrator Ready - Waiting for Playbook via Kafka...")
         
         # Start event handler thread
         threading.Thread(target=print_event_handler_message, daemon=True).start()

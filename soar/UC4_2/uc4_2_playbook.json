@@ -107,7 +107,7 @@
 		},
 		"action--8b148e77-b919-4ec5-b9a9-61adddabf3bc": {
 			"type": "action",
-			"name": "Blocking IP",
+			"name": "Block IP Firewall",
 			"description": "Block relevant IPs via pfsense",
 			"agent": "organization--4eea6a58-7dee-4d41-9c9a-14ba0166d24c",
 			"on_completion": "end--54615992-5e0b-421f-b056-21e534856004",
