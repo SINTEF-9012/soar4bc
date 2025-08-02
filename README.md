@@ -12,19 +12,8 @@ yarn version v1.22.19
 Install dependencies:
 
 ```
+(yarn cache clean)
 yarn install
-```
-
-Build local Docker image for MQtt-Kafka bridge (the rest of the Docker images are pulled from web):
-
-```
-docker build -t mqtt-kafka-bridge -f docker/Dockerfile .
-```
-
-Navigate to the `statistics` directory and build the Dockerfile for the statistics module:
-
-```
-docker build -t statistics -f Dockerfile .
 ```
 
 Create an environment and install Python (v3.10), flask (v3.0.0), minio (v7.1.17), neo4j (v5.15.0), poetry (v1.7.1), openai (v0.28.1), pyyaml (v6.0.1), strenum (v0.4.15), dpkt (v1.9.8) and paho-mqtt (v1.6.1) OR use connection/environment.yml file to create Conda environment:
@@ -50,17 +39,19 @@ Run in another terminal:
 yarn run dev
 ```
 
-Activate the environment, navigate to the connection folder and run both `minio_api.py` and `neo4j_api.py` files by using the following commands: 
-Activate the environment, navigate to the connection folder and run minio_api.py, neo4j_api.py and analytics_api.py files, using the following commands:
+Activate the environment, navigate to the connection folder and run `minio_api.py`, `neo4j_api.py` and `analytics_api.py` files, using the following commands:
 
 ```
 python minio_api.py
 python neo4j_api.py
+python analytics_api.py
 ```
 
-Navigate to the `statistics` directory, and run the following command (after having started the rest of the services as explained above):
+Navigate to the `statistics` directory, build the Dockerfile for the statistics module, and run the following commands (after having started the rest of the services as explained above):
 
 ```
+docker build -t statistics -f Dockerfile .
+
 docker run -p 5003:5003 --network=sindit_network -it statistics
 ```
 
@@ -86,29 +77,8 @@ Log in with the username: neo4j and the password: sindit-neo4j.
 
 **Load dashboard**: To load a dashboard, press load dashboard button in the left side panel. Choose "Select from file", and choose a sample database (e.g. dashboard-2023-12-05.json) in the "samples" folder in this repo. 
 
-If the database is empty, you can load one by opening Neo4j Browser at http://localhost:7474 (log in using details in docker-compose file). Copy the content in samples/sample-data-updated.cypher and paste it into the query box of the Neo4j browser, then execute the query. The name/type of the object file added in Minio needs to correspond to the endpoint/type properties of the static node. 
 
-## Running SOAR Experiment based on MiniNet (Based on the work by Valtteri)
-
-To initialize the database:
-
-1. Find the data.cypher file from the `samples/data.cypher`.
-2. Copy all the contents and paste them into the query box in Neo4j browser on at [http://localhost:7474](http:localhost:7474), then execute the query.
-
-
-### NeoDash
-
-After setting up Neo4j you can run the dashboard by opening the dashboard in browser: [http://localhost:3000](http://localhost:3000), choose "New Dashboard". 
-Log in with user name: neo4j, password: sindit-neo4j.
-
-
-To initialize the dashboard:
-
-1. Find the dashboard.json file from the `samples/dashboard.json`.
-2. Inside the dashboard, after you have created a New Dashboard and added the above shown credentials, click on the left panel on the page.
-3. Click on the plus sign, and import dashboard.json.
-
-## Configuring Test Bed
+## Configuring a Test Bed for demonstrating SOAR4BC
 
 The test bed has 4 programs that run on it:
 
